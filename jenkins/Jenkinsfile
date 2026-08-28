@@ -1,0 +1,60 @@
+pipeline {
+  agent any
+
+  environment {
+    AWS_DEFAULT_REGION = "us-east-1"
+  }
+
+  stages {
+    stage("Checkout") {
+      steps { checkout scm }
+    }
+
+    stage("Validate") {
+      steps {
+        dir("terraform") {
+          sh "terraform init -input=false"
+          sh "terraform fmt -check"
+          sh "terraform validate"
+        }
+      }
+    }
+
+    stage("Plan") {
+      steps {
+        dir("terraform") {
+          sh "terraform plan -out=tfplan -input=false"
+          sh "terraform show -no-color tfplan | tee tfplan.txt"
+        }
+        archiveArtifacts artifacts: "terraform/tfplan.txt"
+      }
+    }
+
+    stage("Approve") {
+      steps {
+        input message: "Appliquer ECS + Kubernetes ?", ok: "Apply"
+      }
+    }
+
+    stage("Apply") {
+      steps {
+        dir("terraform") {
+          sh "terraform apply -input=false tfplan"
+        }
+      }
+    }
+
+    stage("Verify") {
+      steps {
+        sh "aws ecs describe-services --cluster demo-cluster --services demo-app-service"
+        sh "kubectl get pods,svc,hpa"
+      }
+    }
+  }
+
+  post {
+    always {
+      dir("terraform") { sh "rm -f tfplan" }
+    }
+  }
+}
