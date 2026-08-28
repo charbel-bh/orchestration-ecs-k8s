@@ -11,3 +11,10 @@ crash.log
 
 # macOS
 .DS_Store
+
+# Terraform - fichiers locaux générés
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/tfplan-*
+*.tfplan
