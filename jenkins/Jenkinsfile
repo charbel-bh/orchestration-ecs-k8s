@@ -24,6 +24,47 @@ pipeline {
       }
     }
 
+    stage("Import existing resources") {
+    steps {
+      dir("terraform") {
+        sh '''
+          set -eu
+
+          import_if_absent () {
+            address="$1"
+            resource_id="$2"
+
+            if terraform state list | grep -Fxq "$address"; then
+              echo "$address est deja present dans le state Terraform."
+            else
+              echo "Import de $address ..."
+              terraform import -input=false "$address" "$resource_id"
+            fi
+          }
+
+          import_if_absent "module.ecs.aws_ecr_repository.app" "demo-app"
+
+          SECURITY_GROUP_ID=$(aws ec2 describe-security-groups \
+            --region "$AWS_DEFAULT_REGION" \
+            --filters \
+              "Name=group-name,Values=demo-svc-sg" \
+              "Name=vpc-id,Values=vpc-0bbfc74522592e3fb" \
+            --query "SecurityGroups[0].GroupId" \
+            --output text)
+
+          test -n "$SECURITY_GROUP_ID"
+          test "$SECURITY_GROUP_ID" != "None"
+
+          import_if_absent "module.ecs.aws_security_group.svc_sg" "$SECURITY_GROUP_ID"
+
+          import_if_absent "module.k8s.kubernetes_config_map.app_config" "default/demo-app-config"
+          import_if_absent "module.k8s.kubernetes_deployment.app" "default/demo-app"
+          import_if_absent "module.k8s.kubernetes_service.app" "default/demo-app-svc"
+        '''
+      }
+    }
+  }
+
     stage("Plan") {
       steps {
         dir("terraform") {
