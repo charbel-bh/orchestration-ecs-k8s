@@ -60,6 +60,9 @@ pipeline {
           import_if_absent "module.k8s.kubernetes_config_map.app_config" "default/demo-app-config"
           import_if_absent "module.k8s.kubernetes_deployment.app" "default/demo-app"
           import_if_absent "module.k8s.kubernetes_service.app" "default/demo-app-svc"
+          import_if_absent "module.ecs.aws_ecs_service.app" "demo-cluster/demo-app-service"
+          import_if_absent "module.k8s.kubernetes_ingress_v1.app" "default/demo-app-ingress"
+          import_if_absent "module.k8s.kubernetes_horizontal_pod_autoscaler_v2.app" "default/demo-app-hpa"
         '''
       }
     }
